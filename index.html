@@ -1,0 +1,79 @@
+
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#102a43">
+<title>Kiên Football Analytics 2.1</title>
+<style>
+:root{--navy:#102a43;--blue:#176b87;--bg:#f3f6f8;--card:#fff;--text:#172b3a;--muted:#607482;--green:#16834a;--yellow:#a66b00;--red:#bd3434}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+header{background:var(--navy);color:white;padding:22px 18px 18px}header h1{font-size:21px;margin:0 0 5px}header p{margin:0;color:#d4e2eb;font-size:13px}
+main{max-width:760px;margin:auto;padding:15px}.card{background:var(--card);border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 2px 10px #102a4310}
+h2{font-size:16px;margin:0 0 13px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;padding:12px 8px;border:1px solid #cbd5dc;border-radius:9px;font-size:16px;background:white;color:var(--text)}
+.section{font-weight:700;font-size:13px;color:var(--blue);margin:14px 0 9px}.actions{display:flex;gap:9px;flex-wrap:wrap}button{border:0;border-radius:10px;padding:13px 16px;background:var(--blue);color:white;font-size:15px;font-weight:700;cursor:pointer}.secondary{background:#e5edf2;color:var(--navy)}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.tile{background:#f3f7f9;border-radius:10px;padding:11px 8px;text-align:center}.tile b{display:block;font-size:18px;margin:5px 0}.tile span{font-size:12px;color:var(--muted)}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:12px;font-weight:700}.good{background:#e2f4e9;color:var(--green)}.warn{background:#fff2d6;color:var(--yellow)}.bad{background:#fde7e7;color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:10px 5px;border-bottom:1px solid #e5ebef;text-align:right}td:first-child,th:first-child{text-align:left}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 15px 25px}
+@media(max-width:420px){main{padding:11px}.card{padding:13px}.grid{gap:6px}.field input{font-size:15px;padding:11px 5px}.tile b{font-size:16px}}
+</style>
+</head>
+<body>
+<header><h1>KIÊN FOOTBALL ANALYTICS 2.1</h1><p>Odds Movement Detector · Phân tích 1X2</p></header>
+<main>
+<section class="card">
+<h2>1. Thông tin trận đấu</h2>
+<div class="field"><label>Tên trận đấu</label><input id="match" placeholder="Ví dụ: Brondby – Midtjylland"></div>
+<div class="section">ODDS BAN ĐẦU</div>
+<div class="grid">
+<div class="field"><label>Chủ nhà (1)</label><input id="o1" type="number" step="0.01" min="1.01" placeholder="2.50"></div>
+<div class="field"><label>Hòa (X)</label><input id="ox" type="number" step="0.01" min="1.01" placeholder="3.90"></div>
+<div class="field"><label>Khách (2)</label><input id="o2" type="number" step="0.01" min="1.01" placeholder="2.35"></div>
+</div>
+<div class="section">ODDS HIỆN TẠI</div>
+<div class="grid">
+<div class="field"><label>Chủ nhà (1)</label><input id="c1" type="number" step="0.01" min="1.01" placeholder="2.40"></div>
+<div class="field"><label>Hòa (X)</label><input id="cx" type="number" step="0.01" min="1.01" placeholder="3.80"></div>
+<div class="field"><label>Khách (2)</label><input id="c2" type="number" step="0.01" min="1.01" placeholder="2.45"></div>
+</div>
+<div class="section">XÁC SUẤT DỰ BÁO CỦA MÔ HÌNH (%)</div>
+<div class="grid">
+<div class="field"><label>Chủ nhà (1)</label><input id="p1" type="number" min="0" max="100" step="0.1" placeholder="40"></div>
+<div class="field"><label>Hòa (X)</label><input id="px" type="number" min="0" max="100" step="0.1" placeholder="27"></div>
+<div class="field"><label>Khách (2)</label><input id="p2" type="number" min="0" max="100" step="0.1" placeholder="33"></div>
+</div>
+<div class="actions" style="margin-top:15px"><button onclick="analyze()">Phân tích trận đấu</button><button class="secondary" onclick="resetForm()">Xóa dữ liệu</button></div>
+<p class="note">Nhập odds ban đầu và odds hiện tại cùng một nhà cái nếu có thể. Xác suất dự báo phải có tổng bằng 100%. Không có dữ liệu odds ban đầu thì không thể kết luận biến động.</p>
+</section>
+<section class="card" id="output" style="display:none">
+<h2>2. Kết quả phân tích</h2><div id="summary"></div>
+<div class="section">BIẾN ĐỘNG ODDS</div><div class="results" id="movement"></div>
+<div class="section">XÁC SUẤT THỊ TRƯỜNG ĐÃ LOẠI BIÊN</div><div class="results" id="market"></div>
+<div class="section">EV THEO XÁC SUẤT ĐẦU VÀO</div>
+<table><thead><tr><th>Cửa</th><th>Xác suất</th><th>Odds hiện tại</th><th>EV</th></tr></thead><tbody id="ev"></tbody></table>
+<p class="note">EV = (xác suất dự báo × odds hiện tại − 1) × 100%. EV dương không đảm bảo kết quả; chất lượng EV phụ thuộc độ chính xác của mô hình xác suất.</p>
+</section>
+</main>
+<footer>Công cụ hỗ trợ phân tích dữ liệu, không bảo đảm kết quả trận đấu.</footer>
+<script>
+const ids=['o1','ox','o2','c1','cx','c2','p1','px','p2','match'];
+function val(id){return Number(document.getElementById(id).value)}
+function pct(x){return (x*100).toFixed(1)+'%'}
+function analyze(){
+ const old=[val('o1'),val('ox'),val('o2')],now=[val('c1'),val('cx'),val('c2')],p=[val('p1'),val('px'),val('p2')/100];
+ p[0]=val('p1')/100;p[1]=val('px')/100;
+ if([...old,...now].some(x=>!Number.isFinite(x)||x<=1)||p.some(x=>!Number.isFinite(x)||x<0)||Math.abs(p.reduce((a,b)=>a+b,0)-1)>.005){alert('Vui lòng nhập đủ 6 odds lớn hơn 1 và xác suất hợp lệ có tổng bằng 100%.');return}
+ const names=['Chủ nhà','Hòa','Khách'],sum=now.reduce((s,x)=>s+1/x,0),m=now.map(x=>(1/x)/sum);
+ const changes=now.map((x,i)=>(x/old[i]-1)*100),ev=now.map((x,i)=>(p[i]*x-1)*100);
+ document.getElementById('output').style.display='block';
+ const best=Math.max(...ev),idx=ev.indexOf(best);
+ let cls=best>=3?'good':best>=0?'warn':'bad';
+ document.getElementById('summary').innerHTML=`<p><b>${document.getElementById('match').value||'Trận đấu chưa đặt tên'}</b></p><span class="badge ${cls}">${best>=3?'Có EV lý thuyết ≥ +3%':best>=0?'EV dương nhưng dưới +3%':'Chưa có cửa EV dương'}</span><p class="note">Cửa có EV cao nhất theo xác suất nhập vào: <b>${names[idx]}</b> (${best.toFixed(1)}%). Đây không phải khuyến nghị đặt cược.</p>`;
+ document.getElementById('movement').innerHTML=changes.map((x,i)=>`<div class="tile"><span>${names[i]}</span><b>${x>0?'↑ ':x<0?'↓ ':'→ '}${Math.abs(x).toFixed(1)}%</b><span>Odds ${old[i].toFixed(2)} → ${now[i].toFixed(2)}</span></div>`).join('');
+ document.getElementById('market').innerHTML=m.map((x,i)=>`<div class="tile"><span>${names[i]}</span><b>${pct(x)}</b><span>Odds hàm ý đã loại biên</span></div>`).join('');
+ document.getElementById('ev').innerHTML=ev.map((x,i)=>`<tr><td>${names[i]}</td><td>${pct(p[i])}</td><td>${now[i].toFixed(2)}</td><td><b>${x>0?'+':''}${x.toFixed(1)}%</b></td></tr>`).join('');
+}
+function resetForm(){ids.forEach(id=>document.getElementById(id).value='');document.getElementById('output').style.display='none'}
+</script>
+</body></html>
