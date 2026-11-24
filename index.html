@@ -95,7 +95,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px 8px}
 
 <section id="form" class="panel">
 <div class="card"><h2>Phong độ 5–10 trận gần nhất</h2>
-<p class="note">Nhập kết quả theo thứ tự từ cũ đến mới. Dùng W = thắng, D = hòa, L = thua.</p>
+<p class="note">Nhập từ 5 đến 10 kết quả theo thứ tự từ cũ đến mới. Dùng W = thắng, D = hòa, L = thua; phân cách bằng dấu phẩy hoặc khoảng trắng.</p>
 <div class="grid two">
 <div><label>Tên đội</label><input id="formTeam" placeholder="Tên đội bóng"></div>
 <div><label>Chuỗi kết quả (ví dụ: W,D,W,L,W)</label><input id="formSeq" placeholder="W,D,W,L,W"></div>
@@ -153,17 +153,30 @@ function dedupeRecords(items){
  }
  return out.slice(0,300);
 }
+function safeParseRecords(raw){
+ const parsed=JSON.parse(raw);
+ if(!Array.isArray(parsed))throw new Error('Dữ liệu lưu trữ không phải danh sách bản ghi');
+ return dedupeRecords(parsed);
+}
 const getRecords=()=>{
  try{
-  let raw=localStorage.getItem(STORE);
-  if(!raw){for(const key of LEGACY_STORES){raw=localStorage.getItem(key);if(raw){const migrated=dedupeRecords(JSON.parse(raw));localStorage.setItem(STORE,JSON.stringify(migrated));return migrated;}}}
-  return raw?dedupeRecords(JSON.parse(raw)):memoryRecords;
+  const raw=localStorage.getItem(STORE);
+  if(raw!==null){lastStorageError='';return safeParseRecords(raw)}
+  for(const key of LEGACY_STORES){
+   const legacy=localStorage.getItem(key);
+   if(legacy!==null){
+    const migrated=safeParseRecords(legacy);
+    localStorage.setItem(STORE,JSON.stringify(migrated));
+    lastStorageError='';return migrated;
+   }
+  }
+  return memoryRecords;
  }catch(e){lastStorageError=e.message||'Không đọc được bộ nhớ';return memoryRecords}
 };
 const saveRecords=a=>{
- const clean=dedupeRecords(a);memoryRecords=clean;
- try{localStorage.setItem(STORE,JSON.stringify(clean));lastStorageError='';return true}
- catch(e){lastStorageError=e.message||'Không ghi được bộ nhớ';return false}
+ const clean=dedupeRecords(a);
+ try{localStorage.setItem(STORE,JSON.stringify(clean));memoryRecords=clean;lastStorageError='';return true}
+ catch(e){memoryRecords=clean;lastStorageError=e.name==='QuotaExceededError'?'Bộ nhớ trình duyệt đã đầy':(e.message||'Không ghi được bộ nhớ');return false}
 };
 const storageAvailable=(()=>{try{const k='kfa21_test';localStorage.setItem(k,'1');localStorage.removeItem(k);return true}catch(e){return false}})();
 
@@ -180,7 +193,25 @@ const initialTab=location.hash.replace('#','');if(initialTab && $(initialTab)?.c
 function val(id){return $(id).value.trim()}
 function num(id){return val(id)===''?null:Number(val(id))}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function quality(r){let fields=['home','away','league','date','source','playedH','playedA','gfH','gaH','possH','gfA','gaA','possA'];let filled=fields.filter(k=>r[k]!==null&&r[k]!==undefined&&r[k]!=='').length;let issues=[];if(!r.home||!r.away)issues.push('Thiếu tên một hoặc hai đội');if(r.home&&r.away&&r.home.toLowerCase()===r.away.toLowerCase())issues.push('Tên hai đội bị trùng');['possH','possA'].forEach(k=>{if(r[k]!==null&&(r[k]<0||r[k]>100))issues.push(k+' ngoài phạm vi 0–100')});['playedH','playedA','gfH','gaH','gfA','gaA'].forEach(k=>{if(r[k]!==null&&r[k]<0)issues.push(k+' không được âm')});return {score:Math.round(filled/fields.length*100),issues,filled,total:fields.length}}
+function quality(r){
+ const fields=['home','away','league','date','source','playedH','playedA','gfH','gaH','possH','gfA','gaA','possA'];
+ const filled=fields.filter(k=>r[k]!==null&&r[k]!==undefined&&r[k]!=='').length;
+ const issues=[];
+ if(!String(r.home||'').trim()||!String(r.away||'').trim())issues.push('Thiếu tên đội');
+ if(r.home&&r.away&&String(r.home).trim().toLocaleLowerCase('vi')===String(r.away).trim().toLocaleLowerCase('vi'))issues.push('Tên hai đội bị trùng');
+ if(r.date && !/^\d{4}-\d{2}-\d{2}$/.test(String(r.date)))issues.push('Ngày thi đấu không đúng định dạng');
+ ['playedH','playedA'].forEach(k=>{
+  if(r[k]!==null&&r[k]!==undefined&&r[k]!==''&&(!Number.isFinite(Number(r[k]))||Number(r[k])<0||!Number.isInteger(Number(r[k]))))issues.push(k+' phải là số nguyên không âm');
+ });
+ ['gfH','gaH','gfA','gaA'].forEach(k=>{
+  if(r[k]!==null&&r[k]!==undefined&&r[k]!==''&&(!Number.isFinite(Number(r[k]))||Number(r[k])<0))issues.push(k+' phải là số không âm hợp lệ');
+ });
+ ['possH','possA'].forEach(k=>{
+  if(r[k]!==null&&r[k]!==undefined&&r[k]!==''&&(!Number.isFinite(Number(r[k]))||Number(r[k])<0||Number(r[k])>100))issues.push(k+' phải nằm trong khoảng 0–100');
+ });
+ if(r.possH!==null&&r.possH!==undefined&&r.possH!==''&&r.possA!==null&&r.possA!==undefined&&r.possA!==''&&Math.abs(Number(r.possH)+Number(r.possA)-100)>5)issues.push('Tổng kiểm soát bóng hai đội lệch đáng kể so với 100%');
+ return {score:Math.round(filled/fields.length*100),issues,filled,total:fields.length};
+}
 function analyze(r){let q=quality(r);let result=[];if(r.gfH!==null&&r.gaH!==null&&r.gfA!==null&&r.gaA!==null){let h=(r.gfH-r.gaH),a=(r.gfA-r.gaA);result.push(`Hiệu số bàn thắng/trận: ${r.home} ${h.toFixed(2)} · ${r.away} ${a.toFixed(2)}.`);result.push(h>a?'Chỉ số hiệu số bàn/trận đang nghiêng về đội chủ nhà.':h<a?'Chỉ số hiệu số bàn/trận đang nghiêng về đội khách.':'Hai đội có hiệu số bàn/trận bằng nhau.')}else result.push('Chưa đủ dữ liệu bàn thắng/bàn thua để so sánh hiệu số.');if(r.possH!==null&&r.possA!==null)result.push(`Kiểm soát bóng: ${r.home} ${r.possH}% · ${r.away} ${r.possA}%.`);result.push(`Độ đầy đủ dữ liệu: ${q.score}%.`);if(q.issues.length)result.push('Cần rà soát: '+q.issues.join('; ')+'.');return result}
 $('analyze').onclick=()=>{let r={id:Date.now(),created:new Date().toISOString(),home:val('home'),away:val('away'),league:val('league'),date:val('date'),playedH:num('playedH'),playedA:num('playedA'),source:val('source'),gfH:num('gfH'),gaH:num('gaH'),possH:num('possH'),gfA:num('gfA'),gaA:num('gaA'),possA:num('possA'),notes:val('notes')};if(!r.home||!r.away){$('matchResult').textContent='Vui lòng nhập tên cả hai đội.';return}
 if(r.home.toLocaleLowerCase()===r.away.toLocaleLowerCase()){$('matchResult').textContent='Tên đội chủ nhà và đội khách không được trùng nhau.';return}
@@ -191,10 +222,62 @@ if(idx>=0){r.id=a[idx].id;r.created=a[idx].created||r.created;a.splice(idx,1)}
 else {const duplicate=a.findIndex(x=>matchKey(x)===matchKey(r));if(duplicate>=0){r.id=a[duplicate].id||r.id;r.created=a[duplicate].created||r.created;a.splice(duplicate,1);idx=duplicate}}
 a.unshift(r);const persisted=saveRecords(a);delete $('analyze').dataset.editId;$('analyze').textContent='Phân tích & lưu';$('matchResult').innerHTML='<b>Kết quả phân tích</b><br>'+analyze(r).map(esc).join('<br>')+(idx>=0?'<br><span class="pill">Đã cập nhật bản ghi</span>':'<br><span class="pill">Đã thêm bản ghi mới</span>')+(persisted?'<br><span class="pill">Đã lưu trên thiết bị</span>':'<br><span class="pill">Đang lưu tạm — hãy xuất JSON để sao lưu</span>');renderAll()};
 $('clear').onclick=()=>{document.querySelectorAll('#match input,#match textarea').forEach(x=>x.value='');delete $('analyze').dataset.editId;$('analyze').textContent='Phân tích & lưu';$('matchResult').textContent='Đã xóa biểu mẫu.'};
-$('calcForm').onclick=()=>{let seq=val('formSeq').toUpperCase().split(/[,\s]+/).filter(Boolean);if(!seq.length||seq.some(x=>!['W','D','L'].includes(x))){$('formResult').textContent='Nhập chuỗi chỉ gồm W, D, L; ví dụ W,D,W,L,W.';return}let w=seq.filter(x=>x==='W').length,d=seq.filter(x=>x==='D').length,l=seq.filter(x=>x==='L').length;$('formResult').innerHTML=`<b>${esc(val('formTeam')||'Đội bóng')}</b>: ${seq.length} trận · Thắng ${w} · Hòa ${d} · Thua ${l} · Tỷ lệ thắng ${(w/seq.length*100).toFixed(1)}%.<br><span class="note">Đây là thống kê mô tả, không phải dự báo kết quả.</span>`};
-$('calcH2H').onclick=()=>{let w=Number(val('h2hw')||0),d=Number(val('h2hd')||0),l=Number(val('h2hl')||0),g1=Number(val('h2hg1')||0),g2=Number(val('h2hg2')||0),n=w+d+l;
-if([w,d,l,g1,g2].some(x=>!Number.isFinite(x)||x<0||!Number.isInteger(x))){$('h2hResult').textContent='Các số trận và tổng bàn thắng phải là số nguyên không âm.';return}
-if(!n){$('h2hResult').textContent='Nhập số trận đối đầu lớn hơn 0.';return}$('h2hResult').innerHTML=`Tổng ${n} trận · ${esc(val('h2h1')||'Đội 1')} thắng ${(w/n*100).toFixed(1)}% · Hòa ${(d/n*100).toFixed(1)}% · ${esc(val('h2h2')||'Đội 2')} thắng ${(l/n*100).toFixed(1)}%.<br>Trung bình bàn thắng mỗi đội: ${(g1/n).toFixed(2)} và ${(g2/n).toFixed(2)}.`};
+$('calcForm').onclick=()=>{
+ const seq=val('formSeq').toUpperCase().split(/[,\s]+/).filter(Boolean);
+ if(seq.length<5||seq.length>10||seq.some(x=>!['W','D','L'].includes(x))){
+  $('formResult').textContent='Nhập từ 5 đến 10 kết quả theo thứ tự cũ đến mới; chỉ dùng W, D, L. Ví dụ: W,D,W,L,W.';
+  return;
+ }
+ const w=seq.filter(x=>x==='W').length,d=seq.filter(x=>x==='D').length,l=seq.filter(x=>x==='L').length;
+ const points=w*3+d, total=seq.length, pct=n=>(n/total*100).toFixed(1);
+ let streak=1;
+ for(let i=seq.length-1;i>0&&seq[i]===seq[i-1];i--)streak++;
+ const last=seq[seq.length-1], streakLabel={W:'thắng',D:'hòa',L:'thua'}[last];
+ let unbeaten=0;
+ for(let i=seq.length-1;i>=0&&seq[i]!=='L';i--)unbeaten++;
+ const formScore=(points/(total*3)*100).toFixed(1);
+ const label=val('formTeam')||'Đội bóng';
+ $('formResult').innerHTML=
+  `<b>${esc(label)}</b><br>`+
+  `<div class="kpis" style="margin:10px 0">`+
+  `<div class="kpi"><b>${points}/${total*3}</b><span>Điểm tích lũy</span></div>`+
+  `<div class="kpi"><b>${formScore}%</b><span>Điểm tối đa</span></div>`+
+  `<div class="kpi"><b>${w}-${d}-${l}</b><span>Thắng – Hòa – Thua</span></div>`+
+  `<div class="kpi"><b>${pct(w)}%</b><span>Tỷ lệ thắng</span></div></div>`+
+  `Tỷ lệ hòa: ${pct(d)}% · Tỷ lệ thua: ${pct(l)}%<br>`+
+  `Chuỗi hiện tại: ${streak} trận ${streakLabel} liên tiếp · Bất bại gần nhất: ${unbeaten} trận.<br>`+
+  `<span class="note">Điểm quy ước: thắng 3, hòa 1, thua 0. Chuỗi được đọc từ cũ đến mới. Đây là thống kê mô tả, không phải dự báo kết quả.</span>`;
+}
+$('calcH2H').onclick=()=>{
+ const team1=val('h2h1')||'Đội 1',team2=val('h2h2')||'Đội 2';
+ const w=Number(val('h2hw')||0),d=Number(val('h2hd')||0),l=Number(val('h2hl')||0);
+ const g1=Number(val('h2hg1')||0),g2=Number(val('h2hg2')||0),n=w+d+l;
+ if([w,d,l,g1,g2].some(x=>!Number.isFinite(x)||x<0||!Number.isInteger(x))){
+  $('h2hResult').textContent='Số trận thắng/hòa/thua và tổng bàn thắng phải là số nguyên không âm.';
+  return;
+ }
+ if(!n){$('h2hResult').textContent='Nhập số trận đối đầu lớn hơn 0.';return}
+ if(team1.trim().toLocaleLowerCase('vi')===team2.trim().toLocaleLowerCase('vi')){
+  $('h2hResult').textContent='Tên hai đội phải khác nhau.';return;
+ }
+ const pct=x=>(x/n*100).toFixed(1),avg=x=>(x/n).toFixed(2);
+ const diff=g1-g2,points1=w*3+d,points2=l*3+d;
+ const leader=points1>points2?team1:points2>points1?team2:'Hai đội cân bằng về điểm đối đầu';
+ const trend=diff>0?`${team1} ghi nhiều hơn ${diff} bàn`:diff<0?`${team2} ghi nhiều hơn ${Math.abs(diff)} bàn`:'Hai đội có tổng bàn thắng bằng nhau';
+ $('h2hResult').innerHTML=
+  `<b>${esc(team1)} – ${esc(team2)}</b>`+
+  `<div class="kpis" style="margin:10px 0">`+
+  `<div class="kpi"><b>${n}</b><span>Tổng số trận</span></div>`+
+  `<div class="kpi"><b>${w}-${d}-${l}</b><span>Thắng – Hòa – Thua</span></div>`+
+  `<div class="kpi"><b>${g1}-${g2}</b><span>Tổng bàn thắng</span></div>`+
+  `<div class="kpi"><b>${diff>0?'+':''}${diff}</b><span>Chênh lệch bàn</span></div></div>`+
+  `<table><tr><th>Chỉ số</th><th>${esc(team1)}</th><th>${esc(team2)}</th></tr>`+
+  `<tr><td>Tỷ lệ thắng</td><td>${pct(w)}%</td><td>${pct(l)}%</td></tr>`+
+  `<tr><td>Điểm đối đầu (3–1–0)</td><td>${points1}</td><td>${points2}</td></tr>`+
+  `<tr><td>Bàn thắng trung bình/trận</td><td>${avg(g1)}</td><td>${avg(g2)}</td></tr></table>`+
+  `<p><b>Nhận xét thống kê:</b> ${esc(leader)}. ${esc(trend)}.</p>`+
+  `<span class="note">Tỷ lệ và trung bình được tính từ số liệu tổng hợp người dùng nhập. Chưa xét thời điểm, sân nhà/sân khách, chất lượng đối thủ hoặc thay đổi đội hình; đây là thống kê mô tả, không phải dự báo.</span>`;
+}
 $('runQuality').onclick=()=>renderQuality();
 $('deleteAll').onclick=()=>{if(confirm('Xóa toàn bộ lịch sử phân tích trên thiết bị này?')){saveRecords([]);renderAll()}};
 $('historyList').addEventListener('click',e=>{
@@ -221,26 +304,94 @@ $('exportCsv').onclick=()=>{
  const rows=getRecords();
  if(!rows.length){alert('Chưa có dữ liệu để xuất.');return}
  const cols=['date','league','home','away','playedH','playedA','gfH','gaH','possH','gfA','gaA','possA','source','notes'];
- const csv=[cols.join(','),...rows.map(r=>cols.map(k=>{const v=String(r[k]??'').replace(/"/g,'""');return '"'+v+'"'}).join(','))].join('\\r\\n');
- const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');
+ const csv=[cols.join(','),...rows.map(r=>cols.map(k=>{const v=String(r[k]??'').replace(/"/g,'""');return '"'+v+'"'}).join(','))].join('\r\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=u;a.download='kien-football-analytics-2-1-history.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);
 };
 $('printReport').onclick=()=>window.print();
 $('exportJson').onclick=()=>{const payload={app:'Kien Football Analytics',version:'2.1-personal',exportedAt:new Date().toISOString(),records:getRecords()};let blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='kien-football-analytics-2-1-personal-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
 $('importJsonBtn').onclick=()=>$('importJsonFile').click();
-$('importJsonFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const parsed=JSON.parse(await f.text());const rows=Array.isArray(parsed)?parsed:parsed?.records;if(!Array.isArray(rows)||rows.some(x=>!x||typeof x!=='object'||typeof x.home!=='string'||typeof x.away!=='string'))throw new Error('invalid');const clean=dedupeRecords(rows);if(!confirm('Khôi phục '+clean.length+' bản ghi hợp lệ? Dữ liệu hiện tại sẽ được thay thế.'))return;const ok=saveRecords(clean);renderAll();alert(ok?'Khôi phục dữ liệu thành công.':'Đã nạp dữ liệu tạm; bộ nhớ không cho phép lưu lâu dài. Hãy xuất JSON ngay.')}catch(err){alert('File JSON không đúng định dạng Kiên Football Analytics.')}finally{e.target.value=''}};
-function renderQuality(){let a=getRecords();if(!a.length){$('qualityResult').className='empty';$('qualityResult').textContent='Chưa có bản ghi để kiểm tra.';return}let r=a[0],q=quality(r);$('qualityResult').className='';$('qualityResult').innerHTML=`<p><b>${esc(r.home)} – ${esc(r.away)}</b></p><div class="bar"><i style="width:${q.score}%"></i></div><p>Độ đầy đủ: <b>${q.score}%</b> (${q.filled}/${q.total} trường)</p>${q.issues.length?'<p>Cần rà soát: '+q.issues.map(esc).join('; ')+'</p>':'<p class="pill">Đủ trường và không phát hiện lỗi phạm vi cơ bản</p>'}`;}
+$('importJsonFile').onchange=async e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ try{
+  if(f.size>5*1024*1024)throw new Error('File quá lớn (giới hạn 5 MB).');
+  const parsed=JSON.parse(await f.text());
+  const rows=Array.isArray(parsed)?parsed:parsed?.records;
+  if(!Array.isArray(rows))throw new Error('Không tìm thấy danh sách bản ghi.');
+  const valid=rows.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)&&typeof x.home==='string'&&typeof x.away==='string');
+  if(valid.length!==rows.length)throw new Error('File có bản ghi không hợp lệ; dữ liệu hiện tại được giữ nguyên.');
+  if(rows.length>300)throw new Error('File có hơn 300 bản ghi; hãy chia nhỏ file trước khi khôi phục.');
+  const clean=dedupeRecords(rows);
+  if(!confirm('Khôi phục '+clean.length+' bản ghi hợp lệ? Dữ liệu hiện tại sẽ được thay thế. Nên xuất JSON sao lưu trước khi tiếp tục.'))return;
+  const ok=saveRecords(clean);renderAll();
+  alert(ok?'Khôi phục dữ liệu thành công.':'Không thể lưu lâu dài: '+lastStorageError+'. Dữ liệu chỉ còn trong phiên hiện tại; hãy xuất JSON ngay.');
+ }catch(err){alert('Không thể khôi phục: '+(err.message||'File JSON không đúng định dạng')+' Dữ liệu hiện tại không bị thay đổi.');}
+ finally{e.target.value=''}
+};
+function renderQuality(){
+ const rows=getRecords();
+ const el=$('qualityResult');
+ if(!rows.length){el.className='empty';el.textContent='Chưa có bản ghi để kiểm tra.';return}
+ const keys=new Map();
+ rows.forEach(r=>{const k=matchKey(r);keys.set(k,(keys.get(k)||0)+1)});
+ const duplicateCount=[...keys.values()].reduce((n,v)=>n+(v>1?v-1:0),0);
+ const checked=rows.map(r=>({r,q:quality(r)}));
+ const issueRecords=checked.filter(x=>x.q.issues.length).length;
+ const avg=Math.round(checked.reduce((n,x)=>n+x.q.score,0)/checked.length);
+ const missing=checked.reduce((n,x)=>n+(x.q.total-x.q.filled),0);
+ el.className='';
+ el.innerHTML=
+  `<div class="kpis" style="margin:10px 0">`+
+  `<div class="kpi"><b>${rows.length}</b><span>Bản ghi đã kiểm tra</span></div>`+
+  `<div class="kpi"><b>${avg}%</b><span>Độ đầy đủ trung bình</span></div>`+
+  `<div class="kpi"><b>${issueRecords}</b><span>Bản ghi có cảnh báo</span></div>`+
+  `<div class="kpi"><b>${duplicateCount}</b><span>Bản ghi trùng phát hiện</span></div></div>`+
+  `<p>Còn thiếu <b>${missing}</b> trường dữ liệu trên toàn bộ lịch sử.</p>`+
+  `<div style="overflow-x:auto"><table><thead><tr><th>Trận</th><th>Đầy đủ</th><th>Kiểm tra</th></tr></thead><tbody>`+
+  checked.map(({r,q})=>`<tr><td><b>${esc(r.home||'Chưa rõ')} – ${esc(r.away||'Chưa rõ')}</b><br><small>${esc(r.league||'Chưa nhập giải đấu')} · ${esc(r.date||'Chưa nhập ngày')}</small></td><td>${q.score}% (${q.filled}/${q.total})</td><td>${q.issues.length?'<span class="pill">'+q.issues.map(esc).join('; ')+'</span>':'<span class="pill">Không phát hiện lỗi cơ bản</span>'}</td></tr>`).join('')+
+  `</tbody></table></div>`+
+  `<p class="note">Kiểm tra bao gồm trường thiếu, kiểu/phạm vi số liệu, ngày và tính nhất quán cơ bản. Bản ghi trùng được đối chiếu theo khóa trận. Kiểm tra này không xác minh dữ liệu có đúng với nguồn thực tế hay không.</p>`;
+}
 function renderHistory(){
  const q=($('historySearch')?.value||'').trim().toLocaleLowerCase('vi'),d=$('historyDate')?.value||'';
  const a=getRecords().filter(r=>{
   const hay=[r.home,r.away,r.league].join(' ').toLocaleLowerCase('vi');
   return (!q||hay.includes(q))&&(!d||r.date===d);
- });
- $('historyList').innerHTML=a.length?'<div style="overflow-x:auto"><table><thead><tr><th>Trận / Giải đấu</th><th>Ngày</th><th>Đầy đủ</th><th>Thao tác</th></tr></thead><tbody>'+
+ }).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))||Number(y.id||0)-Number(x.id||0));
+ $('historyList').innerHTML=a.length?`<p class="note">Hiển thị ${a.length} / ${getRecords().length} bản ghi.</p>`+'<div style="overflow-x:auto"><table><thead><tr><th>Trận / Giải đấu</th><th>Ngày</th><th>Đầy đủ</th><th>Thao tác</th></tr></thead><tbody>'+
  a.map(x=>`<tr><td><b>${esc(x.home)} – ${esc(x.away)}</b><br><small>${esc(x.league||'Chưa nhập giải đấu')}</small></td><td>${esc(x.date||'—')}</td><td>${quality(x).score}%</td><td><div class="history-actions"><button type="button" class="secondary" data-action="edit" data-id="${Number(x.id)||0}">Sửa</button><button type="button" class="danger" data-action="delete" data-id="${Number(x.id)||0}">Xóa</button></div></td></tr>`).join('')+
  '</tbody></table></div>':'<div class="empty">Không có bản ghi phù hợp.</div>';
 }
-function renderAll(){let a=getRecords(),r=a[0];$('storageNotice').textContent=storageAvailable?'Dữ liệu lưu trên trình duyệt của thiết bị này. Bản xem trước, tab khác hoặc thiết bị khác không tự đồng bộ; dùng Xuất/Khôi phục JSON để chuyển dữ liệu.':'Trình duyệt đang chặn lưu trữ lâu dài. Dữ liệu chỉ được giữ tạm trong phiên hiện tại; hãy xuất JSON trước khi đóng trang.';$('kMatches').textContent=a.length;$('kTeams').textContent=new Set(a.flatMap(x=>[x.home,x.away]).filter(Boolean)).size;$('kComplete').textContent=r?quality(r).score+'%':'0%';$('kSaved').textContent=a.length;$('recent').innerHTML=r?`<b>${esc(r.home)} – ${esc(r.away)}</b><br>${esc(r.league||'Chưa nhập giải đấu')} · ${esc(r.date||'Chưa nhập ngày')}<br><span class="pill">Đã lưu</span>`:'Chưa có dữ liệu. Hãy tạo phân tích đầu tiên ở mục “Phân tích trận”.';renderHistory();if(r){$('performanceResult').className='';$('performanceResult').innerHTML=`<h3>${esc(r.home)} vs ${esc(r.away)}</h3><table><tr><th>Chỉ số</th><th>${esc(r.home)}</th><th>${esc(r.away)}</th></tr><tr><td>Bàn thắng/trận</td><td>${r.gfH??'—'}</td><td>${r.gfA??'—'}</td></tr><tr><td>Bàn thua/trận</td><td>${r.gaH??'—'}</td><td>${r.gaA??'—'}</td></tr><tr><td>Kiểm soát bóng</td><td>${r.possH===null?'—':r.possH+'%'}</td><td>${r.possA===null?'—':r.possA+'%'}</td></tr><tr><td>Số trận đã chơi</td><td>${r.playedH??'—'}</td><td>${r.playedA??'—'}</td></tr></table>`;$('reportBody').className='';$('reportBody').innerHTML=`<h3>${esc(r.home)} – ${esc(r.away)}</h3><p>Giải đấu: ${esc(r.league||'Chưa nhập')} · Ngày: ${esc(r.date||'Chưa nhập')}</p><ul>${analyze(r).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul><p>Ghi chú: ${esc(r.notes||'Không có')}</p>`;}else{$('performanceResult').className='empty';$('performanceResult').textContent='Chưa có dữ liệu hiệu suất.';$('reportBody').className='empty';$('reportBody').textContent='Chưa có dữ liệu báo cáo.'}renderQuality()}
+function renderReport(){
+ const rows=getRecords(),el=$('reportBody');
+ if(!rows.length){el.className='empty';el.textContent='Chưa có dữ liệu báo cáo.';return}
+ const teams=new Set(rows.flatMap(r=>[r.home,r.away]).filter(Boolean));
+ const leagues=[...new Set(rows.map(r=>r.league).filter(Boolean))];
+ const scores=rows.map(r=>quality(r).score);
+ const avg=Math.round(scores.reduce((s,v)=>s+v,0)/scores.length);
+ const flagged=rows.filter(r=>quality(r).issues.length).length;
+ const dates=rows.map(r=>r.date).filter(Boolean).sort();
+ const latest=[...rows].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.id||0)-Number(a.id||0))[0];
+ const sourceCounts=rows.reduce((o,r)=>{const k=String(r.source||'Chưa ghi nguồn');o[k]=(o[k]||0)+1;return o},{});
+ const sourceText=Object.entries(sourceCounts).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ');
+ el.className='';
+ el.innerHTML=
+  `<h3>Báo cáo tổng hợp dữ liệu</h3><p>Thời điểm lập báo cáo: ${new Date().toLocaleString('vi-VN')}</p>`+
+  `<div class="kpis" style="margin:10px 0">`+
+  `<div class="kpi"><b>${rows.length}</b><span>Bản ghi phân tích</span></div>`+
+  `<div class="kpi"><b>${teams.size}</b><span>Đội bóng khác nhau</span></div>`+
+  `<div class="kpi"><b>${avg}%</b><span>Độ đầy đủ trung bình</span></div>`+
+  `<div class="kpi"><b>${flagged}</b><span>Bản ghi có cảnh báo cơ bản</span></div></div>`+
+  `<h3>Phạm vi dữ liệu</h3><p>Giải đấu: ${leagues.length?leagues.map(esc).join(', '):'Chưa có thông tin'}.</p>`+
+  `<p>Khoảng ngày: ${dates.length?esc(dates[0])+' đến '+esc(dates[dates.length-1]):'Chưa có ngày hợp lệ'}.</p>`+
+  `<p>Nguồn được ghi nhận: ${sourceText||'Chưa ghi nguồn'}.</p>`+
+  `<h3>Bản ghi gần nhất theo ngày</h3><p><b>${esc(latest.home)} – ${esc(latest.away)}</b><br>`+
+  `Giải đấu: ${esc(latest.league||'Chưa nhập')} · Ngày: ${esc(latest.date||'Chưa nhập')} · Độ đầy đủ: ${quality(latest).score}%</p>`+
+  `<ul>${analyze(latest).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`+
+  `<p>Ghi chú: ${esc(latest.notes||'Không có')}</p>`+
+  `<p class="note">Báo cáo mô tả dữ liệu hiện đang lưu trên thiết bị. Chất lượng/độ đầy đủ không xác nhận tính chính xác của nguồn. Các chỉ số không phải dự báo kết quả thi đấu.</p>`;
+}
+function renderAll(){let a=getRecords(),r=a[0];$('storageNotice').textContent=(storageAvailable?'Dữ liệu lưu trên trình duyệt của thiết bị này. Bản xem trước, tab khác hoặc thiết bị khác không tự đồng bộ; dùng Xuất/Khôi phục JSON để chuyển dữ liệu.':'Trình duyệt đang chặn lưu trữ lâu dài. Dữ liệu chỉ được giữ tạm trong phiên hiện tại; hãy xuất JSON trước khi đóng trang.')+(lastStorageError?' Cảnh báo: '+lastStorageError+'. Hãy xuất JSON để sao lưu.':'');$('kMatches').textContent=a.length;$('kTeams').textContent=new Set(a.flatMap(x=>[x.home,x.away]).filter(Boolean)).size;$('kComplete').textContent=r?quality(r).score+'%':'0%';$('kSaved').textContent=a.length;$('recent').innerHTML=r?`<b>${esc(r.home)} – ${esc(r.away)}</b><br>${esc(r.league||'Chưa nhập giải đấu')} · ${esc(r.date||'Chưa nhập ngày')}<br><span class="pill">Đã lưu</span>`:'Chưa có dữ liệu. Hãy tạo phân tích đầu tiên ở mục “Phân tích trận”.';renderHistory();if(r){$('performanceResult').className='';const fmt=v=>v===null||v===undefined?'—':Number(v).toFixed(2);const diffH=r.gfH!==null&&r.gfH!==undefined&&r.gaH!==null&&r.gaH!==undefined?r.gfH-r.gaH:null;const diffA=r.gfA!==null&&r.gfA!==undefined&&r.gaA!==null&&r.gaA!==undefined?r.gfA-r.gaA:null;const attack=r.gfH!==null&&r.gfA!==null?(r.gfH>r.gfA?r.home:r.gfA>r.gfH?r.away:'Ngang nhau'):null;const defence=r.gaH!==null&&r.gaA!==null?(r.gaH<r.gaA?r.home:r.gaA<r.gaH?r.away:'Ngang nhau'):null;const completeness=quality(r).score;$('performanceResult').innerHTML=`<h3>${esc(r.home)} vs ${esc(r.away)}</h3><div class="kpis" style="margin:10px 0"><div class="kpi"><b>${diffH===null?'—':(diffH>0?'+':'')+fmt(diffH)}</b><span>Hiệu số bàn/trận · ${esc(r.home)}</span></div><div class="kpi"><b>${diffA===null?'—':(diffA>0?'+':'')+fmt(diffA)}</b><span>Hiệu số bàn/trận · ${esc(r.away)}</span></div><div class="kpi"><b>${completeness}%</b><span>Độ đầy đủ dữ liệu</span></div></div><table><tr><th>Chỉ số</th><th>${esc(r.home)}</th><th>${esc(r.away)}</th></tr><tr><td>Bàn thắng/trận</td><td>${fmt(r.gfH)}</td><td>${fmt(r.gfA)}</td></tr><tr><td>Bàn thua/trận</td><td>${fmt(r.gaH)}</td><td>${fmt(r.gaA)}</td></tr><tr><td>Hiệu số bàn/trận</td><td>${diffH===null?'—':fmt(diffH)}</td><td>${diffA===null?'—':fmt(diffA)}</td></tr><tr><td>Kiểm soát bóng</td><td>${r.possH===null||r.possH===undefined?'—':fmt(r.possH)+'%'}</td><td>${r.possA===null||r.possA===undefined?'—':fmt(r.possA)+'%'}</td></tr><tr><td>Số trận đã chơi</td><td>${r.playedH??'—'}</td><td>${r.playedA??'—'}</td></tr></table><p><b>So sánh mô tả:</b> Ưu thế ghi bàn: ${attack?esc(attack):'chưa đủ dữ liệu'}. Ưu thế phòng ngự (ít bàn thua hơn): ${defence?esc(defence):'chưa đủ dữ liệu'}.</p><p class="note">Các chỉ số bàn thắng và bàn thua là mức trung bình do người dùng nhập, không phải tổng bàn. So sánh này không điều chỉnh theo sức mạnh đối thủ, sân nhà/sân khách, giải đấu hoặc thời điểm thống kê; không phải dự báo kết quả.</p>`;;}else{$('performanceResult').className='empty';$('performanceResult').textContent='Chưa có dữ liệu hiệu suất.'}renderReport();renderQuality()}
 renderAll();
 window.addEventListener('storage',e=>{if(e.key===STORE)renderAll()});
 window.addEventListener('pageshow',()=>renderAll());
