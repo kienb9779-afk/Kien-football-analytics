@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102b43">
+<title>Kiên Football Analytics 2.3</title>
+<style>
+:root{--navy:#102b43;--blue:#176f8b;--cyan:#dff3f7;--bg:#f1f5f8;--ink:#183044;--muted:#607789;--line:#d8e2e9;--white:#fff;--green:#18794e;--amber:#9a6500;--red:#b33b3b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(120deg,#102b43,#176f8b);color:white;padding:24px 18px 20px}
+header h1{font-size:23px;line-height:1.2;margin:0 0 7px;letter-spacing:.2px}header p{margin:0;color:#d4e5ee}
+.wrap{max-width:1100px;margin:auto;padding:16px}
+nav{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;padding:6px 2px 12px;position:sticky;top:0;background:var(--bg);z-index:20;scrollbar-width:thin}nav button{flex:0 0 auto;min-height:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+nav button{white-space:nowrap;border:1px solid var(--line);background:white;color:var(--ink);border-radius:999px;padding:10px 14px;font-weight:650}
+nav button.active{background:var(--navy);color:white;border-color:var(--navy)}
+.panel{display:none}.panel.active{display:block}
+.card{background:white;border:1px solid #e7edf1;border-radius:18px;padding:18px;margin:0 0 14px;box-shadow:0 5px 18px #1830440a}
+h2{font-size:20px;margin:0 0 14px}h3{font-size:15px;margin:16px 0 8px;color:var(--blue);text-transform:uppercase;letter-spacing:.3px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+label{display:block;color:var(--muted);font-size:13px;margin:0 0 5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd8e0;border-radius:11px;background:white;color:var(--ink);font:inherit;min-width:0}
+textarea{min-height:82px;resize:vertical}
+button.primary,button.secondary,button.danger{border:0;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px;min-height:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button.primary{background:var(--blue);color:white}button.secondary{background:#e6eef3;color:var(--navy)}button.danger{background:#fff0f0;color:var(--red)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.note{font-size:13px;color:var(--muted);margin:12px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:#f5f9fb;border:1px solid var(--line);border-radius:13px;padding:13px}.kpi b{display:block;font-size:23px;color:var(--navy)}.kpi span{font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:700}
+.pill{display:inline-block;padding:4px 9px;border-radius:999px;background:var(--cyan);color:#145c72;font-size:12px;font-weight:700}
+.bar{height:10px;background:#e8eff3;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue);border-radius:9px}
+.empty{padding:18px;text-align:center;color:var(--muted);background:#f7fafb;border-radius:12px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:22px 8px}
+@media(max-width:650px){.grid{grid-template-columns:1fr 1fr}.grid.two{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.wrap{padding:12px}.card{padding:15px}header{padding:21px 16px}}
+@media(max-width:390px){.grid,.grid.two{grid-template-columns:1fr}header h1{font-size:20px}}
+@media print{body{background:#fff;color:#111}header{background:#fff!important;color:#111;padding:8px 0}header p,nav,footer,.actions{display:none!important}.wrap{max-width:none;padding:0}.panel{display:none!important}#report{display:block!important}.card{box-shadow:none;border:0;padding:0}.note{color:#333}}
+</style>
+</head>
+<body>
+<header><h1>KIÊN FOOTBALL ANALYTICS 2.3</h1><p>Football Data Lab · Phân tích hiệu suất & chất lượng dữ liệu</p></header>
+<div class="wrap">
+<nav id="tabs">
+<button type="button" class="active" data-tab="dashboard">Tổng quan</button>
+<button type="button" data-tab="match">Phân tích trận</button>
+<button type="button" data-tab="form">Phong độ</button>
+<button type="button" data-tab="h2h">Đối đầu</button>
+<button type="button" data-tab="performance">Hiệu suất</button>
+<button type="button" data-tab="quality">Chất lượng dữ liệu</button>
+<button type="button" data-tab="history">Lịch sử</button>
+<button type="button" data-tab="report">Báo cáo</button>
+</nav>
+
+<section id="dashboard" class="panel active">
+<div class="card"><h2>Dashboard</h2><div class="kpis">
+<div class="kpi"><b id="kMatches">0</b><span>Trận đã phân tích</span></div>
+<div class="kpi"><b id="kTeams">0</b><span>Đội bóng đã nhập</span></div>
+<div class="kpi"><b id="kComplete">0%</b><span>Độ đầy đủ dữ liệu</span></div>
+<div class="kpi"><b id="kSaved">0</b><span>Bản ghi đã lưu</span></div>
+</div></div>
+<div class="card"><h2>Hoạt động gần đây</h2><div id="recent" class="empty">Chưa có dữ liệu. Hãy tạo phân tích đầu tiên ở mục “Phân tích trận”.</div></div>
+<div class="card"><h2>Lưu trữ trên thiết bị</h2><p class="note" id="storageNotice"></p></div>
+<div class="card"><h2>Quy trình sử dụng</h2><p>1. Nhập tên hai đội và thông tin trận đấu.<br>2. Bổ sung phong độ, đối đầu và chỉ số hiệu suất nếu có.<br>3. Kiểm tra chất lượng dữ liệu trước khi lưu báo cáo.</p><p class="note">Phiên bản 2.2 không tự lấy dữ liệu trực tiếp từ nhà cung cấp. Kết quả phụ thuộc vào dữ liệu đầu vào do người dùng cung cấp.</p></div>
+</section>
+
+<section id="match" class="panel">
+<div class="card"><h2>Thông tin trận đấu</h2>
+<div class="grid two">
+<div><label>Đội chủ nhà</label><input id="home" placeholder="Ví dụ: Đội A"></div>
+<div><label>Đội khách</label><input id="away" placeholder="Ví dụ: Đội B"></div>
+<div><label>Giải đấu</label><input id="league" placeholder="Tên giải đấu"></div>
+<div><label>Ngày thi đấu</label><input id="date" type="date"></div>
+</div>
+<h3>Thông tin tổng hợp</h3>
+<div class="grid">
+<div><label>Số trận đã chơi (chủ nhà)</label><input id="playedH" type="number" min="0" placeholder="0"></div>
+<div><label>Số trận đã chơi (khách)</label><input id="playedA" type="number" min="0" placeholder="0"></div>
+<div><label>Nguồn dữ liệu</label><select id="source"><option value="">Chọn nguồn</option><option>Nhập thủ công</option><option>File thống kê</option><option>Nguồn dữ liệu khác</option></select></div>
+</div>
+<h3>Chỉ số hiệu suất</h3>
+<div class="grid">
+<div><label>Bàn thắng/trận - chủ nhà</label><input id="gfH" type="number" min="0" step=".01" placeholder="0.00"></div>
+<div><label>Bàn thua/trận - chủ nhà</label><input id="gaH" type="number" min="0" step=".01" placeholder="0.00"></div>
+<div><label>Kiểm soát bóng % - chủ nhà</label><input id="possH" type="number" min="0" max="100" placeholder="50"></div>
+<div><label>Bàn thắng/trận - khách</label><input id="gfA" type="number" min="0" step=".01" placeholder="0.00"></div>
+<div><label>Bàn thua/trận - khách</label><input id="gaA" type="number" min="0" step=".01" placeholder="0.00"></div>
+<div><label>Kiểm soát bóng % - khách</label><input id="possA" type="number" min="0" max="100" placeholder="50"></div>
+</div>
+<h3>Ghi chú phân tích</h3><textarea id="notes" placeholder="Ghi chú về lực lượng, lịch thi đấu, bối cảnh..."></textarea>
+<div class="actions"><button type="button" class="primary" id="analyze">Phân tích & lưu</button><button type="button" class="secondary" id="clear">Xóa biểu mẫu</button></div>
+<div id="matchResult" class="note" aria-live="polite">Chưa có kết quả phân tích.</div>
+</div>
+</section>
+
+<section id="form" class="panel">
+<div class="card"><h2>Phong độ 5–10 trận gần nhất</h2>
+<p class="note">Nhập kết quả theo thứ tự từ cũ đến mới. Dùng W = thắng, D = hòa, L = thua.</p>
+<div class="grid two">
+<div><label>Tên đội</label><input id="formTeam" placeholder="Tên đội bóng"></div>
+<div><label>Chuỗi kết quả (ví dụ: W,D,W,L,W)</label><input id="formSeq" placeholder="W,D,W,L,W"></div>
+</div><div class="actions"><button type="button" class="primary" id="calcForm">Tính thống kê phong độ</button></div><div id="formResult" class="note"></div>
+</div></section>
+
+<section id="h2h" class="panel">
+<div class="card"><h2>Lịch sử đối đầu</h2><div class="grid two">
+<div><label>Tên đội 1</label><input id="h2h1" placeholder="Đội A"></div><div><label>Tên đội 2</label><input id="h2h2" placeholder="Đội B"></div>
+<div><label>Số trận đội 1 thắng</label><input id="h2hw" type="number" min="0" value="0"></div><div><label>Số trận hòa</label><input id="h2hd" type="number" min="0" value="0"></div>
+<div><label>Số trận đội 2 thắng</label><input id="h2hl" type="number" min="0" value="0"></div><div><label>Tổng bàn thắng đội 1</label><input id="h2hg1" type="number" min="0" value="0"></div>
+<div><label>Tổng bàn thắng đội 2</label><input id="h2hg2" type="number" min="0" value="0"></div>
+</div><div class="actions"><button type="button" class="primary" id="calcH2H">Tổng hợp đối đầu</button></div><div id="h2hResult" class="note"></div></div>
+</section>
+
+<section id="performance" class="panel">
+<div class="card"><h2>So sánh hiệu suất</h2><p class="note">Số liệu được lấy từ lần phân tích gần nhất đã lưu.</p><div id="performanceResult" class="empty">Chưa có dữ liệu hiệu suất.</div></div>
+</section>
+
+<section id="quality" class="panel">
+<div class="card"><h2>Kiểm tra chất lượng dữ liệu</h2><div id="qualityResult" class="empty">Chưa có bản ghi để kiểm tra.</div><div class="actions"><button type="button" class="secondary" id="runQuality">Kiểm tra lại</button></div><p class="note">Kiểm tra tính đầy đủ và phạm vi hợp lệ; không xác minh được dữ liệu có đúng với thực tế hay không.</p></div>
+</section>
+
+<section id="history" class="panel">
+<div class="card"><h2>Lịch sử phân tích</h2><div id="historyList" class="empty">Chưa có bản ghi.</div><div class="actions"><button type="button" class="danger" id="deleteAll">Xóa toàn bộ lịch sử</button></div></div>
+</section>
+
+<section id="report" class="panel">
+<div class="card"><h2>Báo cáo</h2><p class="note">Tạo bản tóm tắt từ bản ghi mới nhất. Có thể in hoặc lưu thành PDF bằng chức năng in của trình duyệt.</p><div id="reportBody" class="empty">Chưa có dữ liệu báo cáo.</div><div class="actions"><button type="button" class="primary" id="printReport">In / lưu PDF</button><button type="button" class="secondary" id="exportJson">Xuất dữ liệu JSON</button><button type="button" class="secondary" id="importJsonBtn">Khôi phục JSON</button><input id="importJsonFile" type="file" accept=".json,application/json" hidden></div></div>
+</section>
+<footer>KIÊN FOOTBALL ANALYTICS 2.3 · Công cụ thống kê tham khảo, không bảo đảm kết quả thi đấu.</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const STORE='kfa23_records';
+let memoryRecords=[];
+const getRecords=()=>{try{const raw=localStorage.getItem(STORE);return raw?JSON.parse(raw):memoryRecords}catch(e){return memoryRecords}};
+const saveRecords=a=>{memoryRecords=a;try{localStorage.setItem(STORE,JSON.stringify(a));return true}catch(e){return false}};
+const storageAvailable=(()=>{try{const k='kfa_test';localStorage.setItem(k,'1');localStorage.removeItem(k);return true}catch(e){return false}})();
+function activateTab(id,updateHash=true){
+ const target=$(id); if(!target || !target.classList.contains('panel')) return;
+ document.querySelectorAll('#tabs button').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+ document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+ if(updateHash){try{history.replaceState(null,'','#'+id)}catch(e){}}
+ renderAll();
+}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)activateTab(b.dataset.tab)});
+document.querySelectorAll('#tabs button').forEach(b=>{b.setAttribute('role','tab');b.setAttribute('aria-selected',b.classList.contains('active')?'true':'false')});
+const initialTab=location.hash.replace('#','');if(initialTab && $(initialTab)?.classList.contains('panel'))activateTab(initialTab,false);
+function val(id){return $(id).value.trim()}
+function num(id){return val(id)===''?null:Number(val(id))}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function quality(r){let fields=['home','away','league','date','source','playedH','playedA','gfH','gaH','possH','gfA','gaA','possA'];let filled=fields.filter(k=>r[k]!==null&&r[k]!==undefined&&r[k]!=='').length;let issues=[];if(!r.home||!r.away)issues.push('Thiếu tên một hoặc hai đội');if(r.home&&r.away&&r.home.toLowerCase()===r.away.toLowerCase())issues.push('Tên hai đội bị trùng');['possH','possA'].forEach(k=>{if(r[k]!==null&&(r[k]<0||r[k]>100))issues.push(k+' ngoài phạm vi 0–100')});['playedH','playedA','gfH','gaH','gfA','gaA'].forEach(k=>{if(r[k]!==null&&r[k]<0)issues.push(k+' không được âm')});return {score:Math.round(filled/fields.length*100),issues,filled,total:fields.length}}
+function analyze(r){let q=quality(r);let result=[];if(r.gfH!==null&&r.gaH!==null&&r.gfA!==null&&r.gaA!==null){let h=(r.gfH-r.gaH),a=(r.gfA-r.gaA);result.push(`Hiệu số bàn thắng/trận: ${r.home} ${h.toFixed(2)} · ${r.away} ${a.toFixed(2)}.`);result.push(h>a?'Chỉ số hiệu số bàn/trận đang nghiêng về đội chủ nhà.':h<a?'Chỉ số hiệu số bàn/trận đang nghiêng về đội khách.':'Hai đội có hiệu số bàn/trận bằng nhau.')}else result.push('Chưa đủ dữ liệu bàn thắng/bàn thua để so sánh hiệu số.');if(r.possH!==null&&r.possA!==null)result.push(`Kiểm soát bóng: ${r.home} ${r.possH}% · ${r.away} ${r.possA}%.`);result.push(`Độ đầy đủ dữ liệu: ${q.score}%.`);if(q.issues.length)result.push('Cần rà soát: '+q.issues.join('; ')+'.');return result}
+$('analyze').onclick=()=>{let r={id:Date.now(),created:new Date().toISOString(),home:val('home'),away:val('away'),league:val('league'),date:val('date'),playedH:num('playedH'),playedA:num('playedA'),source:val('source'),gfH:num('gfH'),gaH:num('gaH'),possH:num('possH'),gfA:num('gfA'),gaA:num('gaA'),possA:num('possA'),notes:val('notes')};if(!r.home||!r.away){$('matchResult').textContent='Vui lòng nhập tên cả hai đội.';return}
+if(r.home.toLocaleLowerCase()===r.away.toLocaleLowerCase()){$('matchResult').textContent='Tên đội chủ nhà và đội khách không được trùng nhau.';return}
+const numericKeys=['playedH','playedA','gfH','gaH','possH','gfA','gaA','possA'];
+for(const k of numericKeys){if(r[k]!==null&&(!Number.isFinite(r[k])||r[k]<0||((k==='possH'||k==='possA')&&r[k]>100))){$('matchResult').textContent='Dữ liệu '+k+' không hợp lệ. Kiểm tra số âm và tỷ lệ kiểm soát bóng 0–100%.';return}}
+let a=getRecords();a.unshift(r);const persisted=saveRecords(a.slice(0,100));$('matchResult').innerHTML='<b>Kết quả phân tích</b><br>'+analyze(r).map(esc).join('<br>')+(persisted?'<br><span class="pill">Đã lưu trên thiết bị</span>':'<br><span class="pill">Đang lưu tạm trong phiên này — hãy xuất JSON để sao lưu</span>');renderAll()};
+$('clear').onclick=()=>document.querySelectorAll('#match input,#match textarea').forEach(x=>x.value='');
+$('calcForm').onclick=()=>{let seq=val('formSeq').toUpperCase().split(/[,\s]+/).filter(Boolean);if(!seq.length||seq.some(x=>!['W','D','L'].includes(x))){$('formResult').textContent='Nhập chuỗi chỉ gồm W, D, L; ví dụ W,D,W,L,W.';return}let w=seq.filter(x=>x==='W').length,d=seq.filter(x=>x==='D').length,l=seq.filter(x=>x==='L').length;$('formResult').innerHTML=`<b>${esc(val('formTeam')||'Đội bóng')}</b>: ${seq.length} trận · Thắng ${w} · Hòa ${d} · Thua ${l} · Tỷ lệ thắng ${(w/seq.length*100).toFixed(1)}%.<br><span class="note">Đây là thống kê mô tả, không phải dự báo kết quả.</span>`};
+$('calcH2H').onclick=()=>{let w=Number(val('h2hw')||0),d=Number(val('h2hd')||0),l=Number(val('h2hl')||0),g1=Number(val('h2hg1')||0),g2=Number(val('h2hg2')||0),n=w+d+l;
+if([w,d,l,g1,g2].some(x=>!Number.isFinite(x)||x<0||!Number.isInteger(x))){$('h2hResult').textContent='Các số trận và tổng bàn thắng phải là số nguyên không âm.';return}
+if(!n){$('h2hResult').textContent='Nhập số trận đối đầu lớn hơn 0.';return}$('h2hResult').innerHTML=`Tổng ${n} trận · ${esc(val('h2h1')||'Đội 1')} thắng ${(w/n*100).toFixed(1)}% · Hòa ${(d/n*100).toFixed(1)}% · ${esc(val('h2h2')||'Đội 2')} thắng ${(l/n*100).toFixed(1)}%.<br>Trung bình bàn thắng mỗi đội: ${(g1/n).toFixed(2)} và ${(g2/n).toFixed(2)}.`};
+$('runQuality').onclick=()=>renderQuality();
+$('deleteAll').onclick=()=>{if(confirm('Xóa toàn bộ lịch sử phân tích trên thiết bị này?')){saveRecords([]);renderAll()}};
+$('printReport').onclick=()=>window.print();
+$('exportJson').onclick=()=>{let blob=new Blob([JSON.stringify(getRecords(),null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='kien-football-analytics-2-3-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+$('importJsonBtn').onclick=()=>$('importJsonFile').click();
+$('importJsonFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const parsed=JSON.parse(await f.text());if(!Array.isArray(parsed)||parsed.some(x=>!x||typeof x!=='object'||typeof x.home!=='string'||typeof x.away!=='string'))throw new Error('invalid');if(!confirm('Khôi phục '+parsed.length+' bản ghi? Dữ liệu hiện tại sẽ được thay thế.'))return;saveRecords(parsed.slice(0,100));renderAll();alert('Đã khôi phục dữ liệu.')}catch(err){alert('File JSON không đúng định dạng Kiên Football Analytics.')}finally{e.target.value=''}};
+function renderQuality(){let a=getRecords();if(!a.length){$('qualityResult').className='empty';$('qualityResult').textContent='Chưa có bản ghi để kiểm tra.';return}let r=a[0],q=quality(r);$('qualityResult').className='';$('qualityResult').innerHTML=`<p><b>${esc(r.home)} – ${esc(r.away)}</b></p><div class="bar"><i style="width:${q.score}%"></i></div><p>Độ đầy đủ: <b>${q.score}%</b> (${q.filled}/${q.total} trường)</p>${q.issues.length?'<p>Cần rà soát: '+q.issues.map(esc).join('; ')+'</p>':'<p class="pill">Không phát hiện lỗi phạm vi cơ bản</p>'}`;}
+function renderAll(){let a=getRecords(),r=a[0];$('storageNotice').textContent=storageAvailable?'Dữ liệu được lưu trong bộ nhớ trình duyệt trên thiết bị này. Không tự đồng bộ sang thiết bị khác; hãy xuất JSON định kỳ để sao lưu.':'Trình duyệt đang chặn lưu trữ lâu dài. Dữ liệu chỉ được giữ tạm trong phiên hiện tại; hãy xuất JSON trước khi đóng trang.';$('kMatches').textContent=a.length;$('kTeams').textContent=new Set(a.flatMap(x=>[x.home,x.away]).filter(Boolean)).size;$('kComplete').textContent=r?quality(r).score+'%':'0%';$('kSaved').textContent=a.length;$('recent').innerHTML=r?`<b>${esc(r.home)} – ${esc(r.away)}</b><br>${esc(r.league||'Chưa nhập giải đấu')} · ${esc(r.date||'Chưa nhập ngày')}<br><span class="pill">Đã lưu</span>`:'Chưa có dữ liệu. Hãy tạo phân tích đầu tiên ở mục “Phân tích trận”.';$('historyList').innerHTML=a.length?'<table><thead><tr><th>Trận</th><th>Ngày</th><th>Độ đầy đủ</th></tr></thead><tbody>'+a.map(x=>`<tr><td>${esc(x.home)} – ${esc(x.away)}</td><td>${esc(x.date||'—')}</td><td>${quality(x).score}%</td></tr>`).join('')+'</tbody></table>':'Chưa có bản ghi.';if(r){$('performanceResult').className='';$('performanceResult').innerHTML=`<h3>${esc(r.home)} vs ${esc(r.away)}</h3><table><tr><th>Chỉ số</th><th>${esc(r.home)}</th><th>${esc(r.away)}</th></tr><tr><td>Bàn thắng/trận</td><td>${r.gfH??'—'}</td><td>${r.gfA??'—'}</td></tr><tr><td>Bàn thua/trận</td><td>${r.gaH??'—'}</td><td>${r.gaA??'—'}</td></tr><tr><td>Kiểm soát bóng</td><td>${r.possH===null?'—':r.possH+'%'}</td><td>${r.possA===null?'—':r.possA+'%'}</td></tr><tr><td>Số trận đã chơi</td><td>${r.playedH??'—'}</td><td>${r.playedA??'—'}</td></tr></table>`;$('reportBody').className='';$('reportBody').innerHTML=`<h3>${esc(r.home)} – ${esc(r.away)}</h3><p>Giải đấu: ${esc(r.league||'Chưa nhập')} · Ngày: ${esc(r.date||'Chưa nhập')}</p><ul>${analyze(r).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul><p>Ghi chú: ${esc(r.notes||'Không có')}</p>`;}else{$('performanceResult').className='empty';$('performanceResult').textContent='Chưa có dữ liệu hiệu suất.';$('reportBody').className='empty';$('reportBody').textContent='Chưa có dữ liệu báo cáo.'}renderQuality()}
+renderAll();
+</script>
+</body></html>
